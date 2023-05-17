@@ -1,8 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TextField, Box, ButtonGroup, Typography } from '@mui/material';
-import Select from '@mui/material/Select';
-import MenuItem from '@mui/material/MenuItem';
+import { Box, Typography } from '@mui/material';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import UserTable from './components/UserTable';
+import Pagination from './components/Pagination';
+import Search from './components/Search';
+import Sort from './components/Sort';
+import UserPost from './pages/UserPost';
+import UserTodo from './pages/UserTodo';
+import UserCart from './pages/UserCart';
 
 const App = () => {
   const [users, setUsers] = useState([]);
@@ -22,7 +28,7 @@ const App = () => {
       const { users } = response.data;
       setUsers(users);
       setSearchResults(users);
-      setTotalPages(Math.ceil(users.length / 20));
+      setTotalPages(Math.ceil(users.length / 10));
     } catch (error) {
       console.error(error);
     }
@@ -40,6 +46,18 @@ const App = () => {
     }
   };
 
+  const getAgeCategory = (age) => {
+    if (age < 1) {
+      return 'วัยแรกเกิด';
+    } else if (age <= 22) {
+      return 'วัยเรียน';
+    } else if (age <= 60) {
+      return 'วัยทำงาน';
+    } else {
+      return 'วัยเกษียณ';
+    }
+  };
+
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setCurrentPage(1);
@@ -47,11 +65,13 @@ const App = () => {
     const lowercaseQuery = searchQuery.toLowerCase();
     const filteredResults = users.filter((user) => {
       const fullName = `${user.firstName} ${user.lastName}`;
+      const ageCategory = getAgeCategory(user.age);
 
       return (
         user.id.toString().includes(lowercaseQuery) ||
         fullName.toLowerCase().includes(lowercaseQuery) ||
         user.age.toString().includes(lowercaseQuery) ||
+        ageCategory.toLowerCase().includes(lowercaseQuery) ||
         user.gender.toLowerCase().includes(lowercaseQuery) ||
         user.email.toLowerCase().includes(lowercaseQuery) ||
         user.phone.toLowerCase().includes(lowercaseQuery)
@@ -59,39 +79,40 @@ const App = () => {
     });
 
     setSearchResults(filteredResults);
-    setTotalPages(Math.ceil(filteredResults.length / 20));
+    setTotalPages(Math.ceil(filteredResults.length / 10));
   };
 
-  const startIndex = (currentPage - 1) * 20;
-  const endIndex = startIndex + 20;
+  const startIndex = (currentPage - 1) * 10;
+  const endIndex = startIndex + 10;
   const paginatedUsers = searchResults.slice(startIndex, endIndex);
 
-
-
   const sortUsers = (criteria) => {
-    let sortedUsers = [...searchResults];
+    let filteredUsers = [...users];
 
     switch (criteria) {
-      case 'name':
-        sortedUsers.sort((a, b) => a.firstName.localeCompare(b.firstName));
+      case 'ID':
+        filteredUsers.sort((a, b) => a.id - b.id);
         break;
-      case 'age-asc':
-        sortedUsers.sort((a, b) => a.age - b.age);
+      case 'Name':
+        filteredUsers.sort((a, b) => a.firstName.localeCompare(b.firstName));
         break;
-      case 'age-desc':
-        sortedUsers.sort((a, b) => b.age - a.age);
+      case 'Age (Low to High)':
+        filteredUsers.sort((a, b) => a.age - b.age);
         break;
-      case 'gender-female':
-        sortedUsers = sortedUsers.filter((user) => user.gender === 'female');
+      case 'Age (High to Low)':
+        filteredUsers.sort((a, b) => b.age - a.age);
         break;
-      case 'gender-male':
-        sortedUsers = sortedUsers.filter((user) => user.gender === 'male');
+      case 'Gender (Female)':
+        filteredUsers = users.filter((user) => user.gender === 'female');
+        break;
+      case 'Gender (Male)':
+        filteredUsers = users.filter((user) => user.gender === 'male');
         break;
       default:
         break;
     }
 
-    setSearchResults(sortedUsers);
+    setSearchResults(filteredUsers);
   };
 
   const handleSortChange = (event) => {
@@ -100,150 +121,36 @@ const App = () => {
   };
 
   return (
-    <Box paddingX={10} paddingY={9}>
+    <Router>
+      <Box marginX={4} marginY={4}>
 
-      <Typography display="flex" justifyContent="center" variant="h2" component="h1" gutterBottom>
-        User List
-      </Typography>
+        <Routes>
+          <Route path="/user/:userId/post" element={<UserPost users={users} />} />
+          <Route path="/user/:userId/todo" element={<UserTodo />} />
+          <Route path="/user/:userId/cart" element={<UserCart />} />
+        </Routes>
 
-      <Box display="flex" justifyContent="center" marginBottom="1rem">
-        <form onSubmit={handleSearchSubmit}>
-          <TextField
-            label="Search"
-            variant="outlined"
-            size="small"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{ width: "600px"}}
-          />
-          <Button type="submit" variant="contained" color="primary">
-            Search
-          </Button>
-        </form>
+        <Typography display="flex" justifyContent="center" variant="h2" component="h1" gutterBottom>
+          User List
+        </Typography>
+
+        <Search searchQuery={searchQuery} setSearchQuery={setSearchQuery} handleSearchSubmit={handleSearchSubmit} />
+
+        <Sort sortCriteria={sortCriteria} handleSortChange={handleSortChange} />
+
+        <UserTable users={paginatedUsers} getAgeCategory={getAgeCategory} />
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          handlePreviousPage={handlePreviousPage}
+          handleNextPage={handleNextPage}
+          setCurrentPage={setCurrentPage}
+        />
+
+
       </Box>
-
-
-      <Box display="flex" justifyContent="center" marginTop="1rem" width="100%" placeholder="Sort" marginBottom={"3rem"}>
-        <ButtonGroup>
-          <Select
-            value={sortCriteria}
-            onChange={handleSortChange}
-            variant="outlined"
-            color="primary"
-            sx={{ width: '300px' }}
-            displayEmpty 
-            renderValue={(selected) => (selected ? 'Sort by ' + selected : 'Sort')} 
-          >
-            <MenuItem value="" disabled>
-              <em>Sort</em>
-            </MenuItem>
-            <MenuItem value="Name">Sort by Name</MenuItem>
-            <MenuItem value="Age (Low to High)">Sort by Age (Low to High)</MenuItem>
-            <MenuItem value="Age (Hight to Low)">Sort by Age (High to Low)</MenuItem>
-            <MenuItem value="Gender (Female)">Sort by Gender (Female)</MenuItem>
-            <MenuItem value="Gender (Male)">Sort by Gender (Male)</MenuItem>
-          </Select>
-        </ButtonGroup>
-      </Box>
-
-
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Age</TableCell>
-              <TableCell>Age Category</TableCell>
-              <TableCell>Gender</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Phone</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-          {paginatedUsers.map((user, index) => {
-            const rowStyle = index % 2 === 0 ? { backgroundColor: '#e1f5fe' } : { backgroundColor: 'white' };
-
-            let ageCategory;
-
-            if (user.age < 1) {
-              ageCategory = 'วัยแรกเกิด';
-            } else if (user.age <= 22) {
-              ageCategory = 'วัยเรียน';
-            } else if (user.age <= 60) {
-              ageCategory = 'วัยทำงาน';
-            } else {
-              ageCategory = 'วัยเกษียณ';
-            }
-
-            return (
-              <TableRow key={user.id} style={rowStyle}>
-                <TableCell>{user.id}</TableCell>
-                <TableCell>{`${user.firstName} ${user.lastName}`}</TableCell>
-                <TableCell>{user.age}</TableCell>
-                <TableCell>{ageCategory}</TableCell>
-                <TableCell>{user.gender}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{user.phone}</TableCell>
-              </TableRow>
-            );
-          })}
-
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <div>
-      <Box display="flex" justifyContent="center" marginTop="1rem">
-  <ButtonGroup>
-    <Button
-      onClick={handlePreviousPage}
-      disabled={currentPage === 1}
-      sx={{
-        backgroundColor: '#1565c0',
-        color: 'white',
-        '&:hover': {
-          backgroundColor: '#1976d2',
-        },
-      }}
-    >
-      Previous Page
-    </Button>
-    {Array.from({ length: totalPages }, (_, idx) => (
-      <Button
-        key={idx + 1}
-        onClick={() => setCurrentPage(idx + 1)}
-        disabled={currentPage === idx + 1}
-        sx={{
-          backgroundColor: currentPage === idx + 1 ? '#1e88e5' : 'white',
-          color: currentPage === idx + 1 ? 'white' : 'black',
-          '&:hover': {
-            backgroundColor: currentPage === idx + 1 ? '#1e88e5' : '#f0f0f0',
-          },
-        }}
-      >
-        {idx + 1}
-      </Button>
-    ))}
-    <Button
-      onClick={handleNextPage}
-      disabled={currentPage === totalPages}
-      sx={{
-        backgroundColor: '#1565c0',
-        color: 'white',
-        '&:hover': {
-          backgroundColor: '#1976d2',
-        },
-      }}
-    >
-      Next Page
-    </Button>
-  </ButtonGroup>
-</Box>
-
-      </div>
-
-    </Box>
+    </Router>
   );
 };
 
