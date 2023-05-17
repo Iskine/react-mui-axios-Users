@@ -120,11 +120,15 @@ const App = () => {
     sortUsers(event.target.value);
   };
 
+  
+  
+
   return (
     <Router>
       <Box marginX={4} marginY={4}>
 
         <Routes>
+          
           <Route path="/user/:userId/post" element={<UserPost users={users} />} />
           <Route path="/user/:userId/todo" element={<UserTodo />} />
           <Route path="/user/:userId/cart" element={<UserCart />} />
@@ -139,6 +143,7 @@ const App = () => {
         <Sort sortCriteria={sortCriteria} handleSortChange={handleSortChange} />
 
         <UserTable users={paginatedUsers} getAgeCategory={getAgeCategory} />
+
 
         <Pagination
           currentPage={currentPage}
